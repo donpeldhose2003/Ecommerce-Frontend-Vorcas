@@ -1,11 +1,14 @@
 import React, { useState } from 'react'
-import { useLocation, useParams, Link } from 'react-router-dom'
+import { useLocation, useParams, Link, useNavigate } from 'react-router-dom'
+import { useCart } from '../../../context/CartContext'
 
 const ProductDetails = () => {
   const { id } = useParams()
   const location = useLocation()
+  const navigate = useNavigate()
   const product = location.state?.product
   const [quantity, setQuantity] = useState(1)
+  const { addToCart } = useCart()
 
   if (!product) {
     return (
@@ -17,8 +20,10 @@ const ProductDetails = () => {
   }
   
   const handleAddToCart = () => {
-    // Placeholder for future cart integration
-    console.log('Add to cart:', product.id, 'qty:', quantity)
+    addToCart(product, quantity)
+    // Show success feedback and optionally redirect
+    alert(`Added ${quantity} ${product.productName} to cart!`)
+    setQuantity(1)
   }
 
   const decrement = () => {

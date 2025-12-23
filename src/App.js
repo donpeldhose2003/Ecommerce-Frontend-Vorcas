@@ -6,22 +6,27 @@ import Footer from './customer/components/Footer/Footer';
 import { HomePage } from './customer/pages/HomePage/HomePage';
 import Product from './customer/components/Product/Product';
 import ProductDetails from './customer/components/ProductDetails/ProductDetails';
+import Cart from './customer/components/Cart/Cart';
+import { CartProvider } from './context/CartContext';
 
 function App() {
   return (
-    <Router>
-      <div className="">
-        <Navigation />
-        
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/products" element={<Product />} />
-          <Route path="/product/:id" element={<ProductDetails />} />
-        </Routes>
+    <CartProvider>
+      <Router>
+        <div className="">
+          <Navigation />
+          
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/products" element={<Product />} />
+            <Route path="/product/:id" element={<ProductDetails />} />
+            <Route path="/cart" element={<Cart />} />
+          </Routes>
 
-        <Footer />
-      </div>
-    </Router>
+          <Footer />
+        </div>
+      </Router>
+    </CartProvider>
   );
 }
 
