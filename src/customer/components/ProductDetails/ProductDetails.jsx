@@ -1,10 +1,11 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useLocation, useParams, Link } from 'react-router-dom'
 
 const ProductDetails = () => {
   const { id } = useParams()
   const location = useLocation()
   const product = location.state?.product
+  const [quantity, setQuantity] = useState(1)
 
   if (!product) {
     return (
@@ -13,6 +14,19 @@ const ProductDetails = () => {
         <Link to='/products' className='text-blue-600 hover:underline'>Back to products</Link>
       </div>
     )
+  }
+  
+  const handleAddToCart = () => {
+    // Placeholder for future cart integration
+    console.log('Add to cart:', product.id, 'qty:', quantity)
+  }
+
+  const decrement = () => {
+    setQuantity((prev) => (prev > 1 ? prev - 1 : 1))
+  }
+
+  const increment = () => {
+    setQuantity((prev) => prev + 1)
   }
 
   return (
@@ -27,10 +41,31 @@ const ProductDetails = () => {
         </div>
         <div>
           <h1 className='text-3xl font-bold text-gray-900 mb-3'>{product.productName}</h1>
-          <p className='text-xl text-blue-600 font-semibold mb-4'>${product.productPrice}</p>
-          <p className='text-gray-700 mb-6'>{product.productDescription}</p>
-          <div className='flex gap-3'>
-            <button className='px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700'>Add to Cart</button>
+          <div className='flex items-center gap-3 mb-2'>
+            {product.discountPrice ? (
+              <>
+                <span className='text-blue-600 font-bold text-2xl'>${product.discountPrice}</span>
+                <span className='text-gray-400 line-through'>${product.productPrice}</span>
+              </>
+            ) : (
+              <span className='text-blue-600 font-bold text-2xl'>${product.productPrice}</span>
+            )}
+          </div>
+          <p className='text-sm text-gray-600 mb-2'>Color: {product.color}</p>
+          <p className='text-sm text-gray-600 mb-4'>Size: {product.size}</p>
+          <p className='text-sm text-gray-700 mb-4'>{product.fullDescription || product.productDescription}</p>
+          <div className='flex items-center gap-4'>
+            <div className='flex items-center border border-gray-300 rounded-md overflow-hidden'>
+              <button onClick={decrement} className='px-3 py-2 text-gray-700 hover:bg-gray-100'>−</button>
+              <span className='px-4 py-2 text-gray-800'>{quantity}</span>
+              <button onClick={increment} className='px-3 py-2 text-gray-700 hover:bg-gray-100'>+</button>
+            </div>
+            <button
+              onClick={handleAddToCart}
+              className='px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors'
+            >
+              Add to Cart
+            </button>
             <Link to='/products' className='px-4 py-2 border border-gray-300 rounded hover:bg-gray-50'>Back to Products</Link>
           </div>
         </div>

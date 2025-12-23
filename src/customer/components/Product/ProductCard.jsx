@@ -27,10 +27,18 @@ const ProductCard = ({ product }) => {
         <p className='text-gray-600 text-sm mb-3 line-clamp-2'>
           {product.productDescription}
         </p>
-        <div className='flex justify-between items-center'>
-          <p className='text-blue-600 font-bold text-lg'>
-            ${product.productPrice}
-          </p>
+        <div className='flex justify-between items-center mb-2'>
+          <div>
+            {product.discountPrice ? (
+              <div className='flex items-center gap-2'>
+                <span className='text-blue-600 font-bold text-lg'>${product.discountPrice}</span>
+                <span className='text-sm line-through text-gray-400'>${product.productPrice}</span>
+              </div>
+            ) : (
+              <span className='text-blue-600 font-bold text-lg'>${product.productPrice}</span>
+            )}
+            <p className='text-xs text-gray-500'>Color: {product.color} · Size: {product.size}</p>
+          </div>
           <span className='text-sm text-gray-500 group-hover:text-blue-600 transition-colors'>View details →</span>
         </div>
       </div>
