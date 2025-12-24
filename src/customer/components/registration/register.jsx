@@ -8,8 +8,8 @@ import {
   MapPinIcon,
   EyeIcon,
   EyeSlashIcon,
-  CheckCircleIcon,
 } from '@heroicons/react/24/outline';
+import { API_ENDPOINTS } from '../../../utils/api';
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -19,10 +19,10 @@ export default function Register() {
     phone: '',
     password: '',
     confirmPassword: '',
-    address: '',
+    streetAddress: '',
     city: '',
     state: '',
-    zipCode: '',
+    zip: '',
     country: '',
     agreeTerms: false,
   });
@@ -60,7 +60,7 @@ export default function Register() {
     // Phone validation
     if (!formData.phone.trim()) {
       newErrors.phone = 'Phone number is required';
-    } else if (!/^[0-9\-\+\(\)\s]{10,}$/.test(formData.phone.replace(/\s/g, ''))) {
+    } else if (!/^[0-9+\-() ]{10,}$/.test(formData.phone.replace(/\s/g, ''))) {
       newErrors.phone = 'Please enter a valid phone number';
     }
 
@@ -81,8 +81,8 @@ export default function Register() {
     }
 
     // Address validation
-    if (!formData.address.trim()) {
-      newErrors.address = 'Address is required';
+    if (!formData.streetAddress.trim()) {
+      newErrors.streetAddress = 'Address is required';
     }
 
     // City validation
@@ -96,8 +96,8 @@ export default function Register() {
     }
 
     // Zip Code validation
-    if (!formData.zipCode.trim()) {
-      newErrors.zipCode = 'Zip/Postal code is required';
+    if (!formData.zip.trim()) {
+      newErrors.zip = 'Zip/Postal code is required';
     }
 
     // Country validation
@@ -138,18 +138,81 @@ export default function Register() {
     }
 
     setIsLoading(true);
+    
+    const payload = {
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      email: formData.email,
+      phone: formData.phone,
+      password: formData.password,
+      streetAddress: formData.streetAddress,
+      city: formData.city,
+      state: formData.state,
+      zip: formData.zip,
+      country: formData.country,
+    };
+
+    console.log('Sending registration request to:', API_ENDPOINTS.REGISTER);
+    console.log('Payload:', payload);
+
     try {
-      // TODO: Replace with actual API call
-      console.log('Registration attempt:', formData);
+      const response = await fetch(API_ENDPOINTS.REGISTER, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+
+      // Try to parse JSON response
+      let data = null;
+      try {
+        data = await response.json();
+        console.log('Response data:', data);
+      } catch (e) {
+        // If response body is empty or not JSON, that's okay
+        console.log('Response is not JSON, using default success message');
+        data = { message: 'Success' };
+      }
+
+      if (!response.ok) {
+        throw new Error(data?.message || `Registration failed (${response.status})`);
+      }
       
-      // Simulate API delay
+      // Registration successful - show success message
+      console.log('Registration successful!');
+      setErrors({ success: 'Registration successful! Redirecting to login...' });
+      
+      // Store basic user info
+      localStorage.setItem('user', JSON.stringify({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email
+      }));
+      
+      // Redirect to login page
       setTimeout(() => {
-        localStorage.setItem('authToken', 'user_token_' + Date.now());
-        navigate('/');
-        setIsLoading(false);
+        navigate('/login');
       }, 1500);
     } catch (error) {
-      setErrors({ submit: 'Registration failed. Please try again.' });
+      console.error('Registration error:', error);
+      console.error('Error message:', error.message);
+      
+      let errorMessage = 'Registration failed. ';
+      
+      if (error.message.includes('Failed to fetch') || error instanceof TypeError) {
+        errorMessage = 'Could not reach the server. Make sure:\n• Backend server is running on http://localhost:8080\n• Frontend is on http://localhost:3000';
+      } else if (error.message.includes('409') || error.message.includes('already exists')) {
+        errorMessage = 'This email is already registered. Please use a different email or try logging in.';
+      } else {
+        errorMessage = error.message || 'Please try again.';
+      }
+      
+      setErrors({ submit: errorMessage });
+    } finally {
       setIsLoading(false);
     }
   };
@@ -294,22 +357,22 @@ export default function Register() {
               <div className="space-y-4">
                 {/* Street Address */}
                 <div>
-                  <label htmlFor="address" className="block text-sm font-medium text-gray-900 mb-1">
+                  <label htmlFor="streetAddress" className="block text-sm font-medium text-gray-900 mb-1">
                     Street Address
                   </label>
                   <input
-                    id="address"
+                    id="streetAddress"
                     type="text"
-                    name="address"
-                    value={formData.address}
+                    name="streetAddress"
+                    value={formData.streetAddress}
                     onChange={handleChange}
                     placeholder="123 Main Street"
                     className={`w-full px-4 py-3 rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
-                      errors.address ? 'border-red-500' : 'border-gray-300'
+                      errors.streetAddress ? 'border-red-500' : 'border-gray-300'
                     }`}
                   />
-                  {errors.address && (
-                    <p className="mt-1 text-sm text-red-600">{errors.address}</p>
+                  {errors.streetAddress && (
+                    <p className="mt-1 text-sm text-red-600">{errors.streetAddress}</p>
                   )}
                 </div>
 
@@ -360,22 +423,22 @@ export default function Register() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Zip Code */}
                   <div>
-                    <label htmlFor="zipCode" className="block text-sm font-medium text-gray-900 mb-1">
+                    <label htmlFor="zip" className="block text-sm font-medium text-gray-900 mb-1">
                       Zip / Postal Code
                     </label>
                     <input
-                      id="zipCode"
+                      id="zip"
                       type="text"
-                      name="zipCode"
-                      value={formData.zipCode}
+                      name="zip"
+                      value={formData.zip}
                       onChange={handleChange}
                       placeholder="10001"
                       className={`w-full px-4 py-3 rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
-                        errors.zipCode ? 'border-red-500' : 'border-gray-300'
+                        errors.zip ? 'border-red-500' : 'border-gray-300'
                       }`}
                     />
-                    {errors.zipCode && (
-                      <p className="mt-1 text-sm text-red-600">{errors.zipCode}</p>
+                    {errors.zip && (
+                      <p className="mt-1 text-sm text-red-600">{errors.zip}</p>
                     )}
                   </div>
 

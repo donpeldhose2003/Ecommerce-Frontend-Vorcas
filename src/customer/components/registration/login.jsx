@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { EnvelopeIcon, LockClosedIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import { API_ENDPOINTS } from '../../../utils/api';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -41,18 +42,55 @@ export default function Login() {
 
     setIsLoading(true);
     try {
-      // TODO: Replace with actual API call
-      console.log('Login attempt:', { email, password });
+      const response = await fetch(API_ENDPOINTS.LOGIN, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
+
+      // Try to parse JSON response
+      let data = null;
+      try {
+        data = await response.json();
+      } catch (e) {
+        // If response body is empty or not JSON
+        data = { message: 'Success' };
+      }
+
+      if (!response.ok) {
+        throw new Error(data?.message || `Login failed (${response.status})`);
+      }
       
-      // Simulate API delay
-      setTimeout(() => {
-        // Store auth token if needed
-        localStorage.setItem('authToken', 'user_token_' + Date.now());
-        navigate('/');
-        setIsLoading(false);
-      }, 1000);
+      // Store auth token and user data
+      if (data?.token) {
+        localStorage.setItem('authToken', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user || { email }));
+      } else {
+        // Store basic user info if no token
+        localStorage.setItem('user', JSON.stringify({ email }));
+      }
+      
+      navigate('/');
     } catch (error) {
-      setErrors({ submit: 'Login failed. Please try again.' });
+      console.error('Login error:', error);
+      
+      let errorMessage = 'Login failed. ';
+      
+      if (error.message.includes('Failed to fetch') || error instanceof TypeError) {
+        errorMessage += 'Could not reach the server. Please make sure the backend server is running on http://localhost:8080';
+      } else if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+        errorMessage = 'Invalid email or password. Please try again.';
+      } else {
+        errorMessage = error.message || 'Please check your credentials and try again.';
+      }
+      
+      setErrors({ submit: errorMessage });
+    } finally {
       setIsLoading(false);
     }
   };
