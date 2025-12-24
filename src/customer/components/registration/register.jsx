@@ -152,7 +152,8 @@ export default function Register() {
       country: formData.country,
     };
 
-    console.log('Sending registration request to:', API_ENDPOINTS.REGISTER);
+    console.log('=== REGISTRATION REQUEST ===');
+    console.log('URL:', API_ENDPOINTS.REGISTER);
     console.log('Payload:', payload);
 
     try {
@@ -164,49 +165,82 @@ export default function Register() {
         body: JSON.stringify(payload),
       });
 
-      console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
+      console.log('=== REGISTRATION RESPONSE ===');
+      console.log('Status:', response.status);
+      console.log('Status Text:', response.statusText);
+      console.log('Content-Type:', response.headers.get('content-type'));
 
       // Try to parse JSON response
       let data = null;
       try {
-        data = await response.json();
-        console.log('Response data:', data);
+        const responseText = await response.text();
+        console.log('Raw Response:', responseText);
+        
+        if (responseText) {
+          data = JSON.parse(responseText);
+        } else {
+          data = { message: 'Success' };
+        }
+        console.log('Parsed Data:', data);
       } catch (e) {
-        // If response body is empty or not JSON, that's okay
-        console.log('Response is not JSON, using default success message');
+        console.error('Error parsing response:', e);
         data = { message: 'Success' };
       }
 
-      if (!response.ok) {
-        throw new Error(data?.message || `Registration failed (${response.status})`);
+      // Check if registration was successful
+      console.log('=== SUCCESS CHECK ===');
+      const hasId = !!(data?._id || data?.id);
+      const hasEmail = !!data?.email;
+      const hasFirstName = !!data?.firstName;
+      const isOkStatus = response.ok;
+      const is400WithData = response.status === 400 && (hasId || (hasEmail && hasFirstName));
+      
+      console.log('Has ID (_id or id):', hasId);
+      console.log('Has Email:', hasEmail);
+      console.log('Has FirstName:', hasFirstName);
+      console.log('Response OK (200-299):', isOkStatus);
+      console.log('Is 400 with data:', is400WithData);
+      
+      const isSuccess = isOkStatus || is400WithData;
+      console.log('Final isSuccess:', isSuccess);
+      
+      if (!isSuccess) {
+        const errorMsg = data?.message || `Registration failed (${response.status})`;
+        console.error('Registration failed:', errorMsg);
+        throw new Error(errorMsg);
       }
       
       // Registration successful - show success message
-      console.log('Registration successful!');
+      console.log('✅ Registration successful!');
       setErrors({ success: 'Registration successful! Redirecting to login...' });
       
       // Store basic user info
-      localStorage.setItem('user', JSON.stringify({
+      const userData = {
         firstName: formData.firstName,
         lastName: formData.lastName,
-        email: formData.email
-      }));
+        email: formData.email,
+        role: data?.role ? data.role.replace('ROLE_', '').toLowerCase() : 'customer',
+      };
+      console.log('Storing user data:', userData);
+      localStorage.setItem('user', JSON.stringify(userData));
       
       // Redirect to login page
       setTimeout(() => {
         navigate('/login');
       }, 1500);
     } catch (error) {
-      console.error('Registration error:', error);
+      console.error('=== REGISTRATION ERROR ===');
+      console.error('Error:', error);
       console.error('Error message:', error.message);
       
       let errorMessage = 'Registration failed. ';
       
       if (error.message.includes('Failed to fetch') || error instanceof TypeError) {
-        errorMessage = 'Could not reach the server. Make sure:\n• Backend server is running on http://localhost:8080\n• Frontend is on http://localhost:3000';
+        errorMessage = '❌ Could not reach the server.\n\nMake sure:\n• Backend is running on http://localhost:8080\n• Frontend is on http://localhost:3000\n• Check browser Network tab for details';
       } else if (error.message.includes('409') || error.message.includes('already exists')) {
         errorMessage = 'This email is already registered. Please use a different email or try logging in.';
+      } else if (error.message.includes('400')) {
+        errorMessage = '400 Error - Check browser console (F12) for detailed response information.';
       } else {
         errorMessage = error.message || 'Please try again.';
       }

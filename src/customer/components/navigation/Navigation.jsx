@@ -253,6 +253,11 @@ export default function Navigation() {
                   Create account
                 </Link>
               </div>
+              <div className="flow-root">
+                <Link to="/admin" className="-m-2 block p-2 font-medium text-indigo-600 hover:text-indigo-700">
+                  Admin Dashboard
+                </Link>
+              </div>
             </div>
 
             <div className="border-t border-gray-200 px-4 py-6">
@@ -389,6 +394,10 @@ export default function Navigation() {
                   <span aria-hidden="true" className="h-6 w-px bg-gray-200" />
                   <Link to="/register" className="text-sm font-medium text-gray-700 hover:text-gray-800">
                     Create account
+                  </Link>
+                  <span aria-hidden="true" className="h-6 w-px bg-gray-200" />
+                  <Link to="/admin" className="text-sm font-medium text-indigo-600 hover:text-indigo-700">
+                    Admin
                   </Link>
                 </div>
 

@@ -5,6 +5,7 @@ export const API_BASE_URL = process.env.REACT_APP_API_URL || '';
 export const API_ENDPOINTS = {
   LOGIN: '/api/auth/login',
   REGISTER: '/api/auth/register',
+  USER_PROFILE: '/api/users/profile',
 };
 
 // Helper function for API requests with proper error handling

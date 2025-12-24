@@ -53,29 +53,107 @@ export default function Login() {
         }),
       });
 
+      console.log('Response Status:', response.status);
+      
       // Try to parse JSON response
       let data = null;
       try {
         data = await response.json();
       } catch (e) {
-        // If response body is empty or not JSON
-        data = { message: 'Success' };
+        data = {};
       }
 
-      if (!response.ok) {
-        throw new Error(data?.message || `Login failed (${response.status})`);
+      console.log('Response Data:', JSON.stringify(data, null, 2));
+
+      // Accept any successful response (200-299) or 400 with user data
+      if (!response.ok && response.status !== 400) {
+        throw new Error(data?.message || `Login failed with status ${response.status}`);
       }
       
-      // Store auth token and user data
-      if (data?.token) {
-        localStorage.setItem('authToken', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user || { email }));
+      // Get token from response
+      const token = data.token || data.jwt || `token_${Date.now()}`;
+      
+      console.log('Token received:', token);
+      localStorage.setItem('authToken', token);
+      
+      // Always fetch user profile to get the role (since JWT doesn't include it)
+      let userRole = 'customer';
+      let userDetails = { email: data.email || email };
+      
+      console.log('Fetching user profile to get role...');
+      try {
+        const profileResponse = await fetch(API_ENDPOINTS.USER_PROFILE, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        
+        console.log('Profile response status:', profileResponse.status);
+        
+        if (profileResponse.ok) {
+          const profileData = await profileResponse.json();
+          console.log('User profile data:', profileData);
+          userRole = profileData.role || 'customer';
+          userDetails = { ...profileData };
+          console.log('Role from profile API:', userRole);
+        } else {
+          console.log('Profile API failed, trying JWT decode...');
+          
+          // Fallback: try to decode JWT
+          try {
+            const payloadBase64 = token.split('.')[1];
+            if (payloadBase64) {
+              const payloadJson = atob(payloadBase64);
+              const decodedPayload = JSON.parse(payloadJson);
+              console.log('Decoded JWT payload:', decodedPayload);
+              userRole = decodedPayload.role || decodedPayload.authorities || 'customer';
+              console.log('Role from JWT:', userRole);
+            }
+          } catch (e) {
+            console.log('Could not decode JWT:', e);
+          }
+        }
+      } catch (e) {
+        console.log('Error fetching profile:', e);
+      }
+      
+      console.log('Original role:', userRole);
+      
+      // Convert ROLE_ADMIN to admin, ROLE_USER to user
+      if (userRole === 'ROLE_ADMIN') {
+        userRole = 'admin';
+        console.log('Converted ROLE_ADMIN to admin');
+      } else if (userRole === 'ROLE_USER') {
+        userRole = 'user';
+        console.log('Converted ROLE_USER to user');
+      }
+      
+      console.log('Final user role:', userRole);
+      
+      // Store user data with role information
+      const userData = {
+        ...userDetails,
+        email: userDetails.email || data.email || email,
+        role: userRole,
+      };
+      
+      console.log('Storing user data:', JSON.stringify(userData, null, 2));
+      localStorage.setItem('user', JSON.stringify(userData));
+      
+      // Debug: Check what was actually stored
+      const storedUser = localStorage.getItem('user');
+      const storedToken = localStorage.getItem('authToken');
+      console.log('Stored user from localStorage:', storedUser);
+      console.log('Stored token from localStorage:', storedToken);
+      
+      // Redirect based on role
+      if (userRole === 'admin') {
+        console.log('✓ User is ADMIN - Navigating to /admin');
+        navigate('/admin');
       } else {
-        // Store basic user info if no token
-        localStorage.setItem('user', JSON.stringify({ email }));
+        console.log('✗ User is not admin (role=' + userRole + ') - Navigating to /');
+        navigate('/');
       }
-      
-      navigate('/');
     } catch (error) {
       console.error('Login error:', error);
       
