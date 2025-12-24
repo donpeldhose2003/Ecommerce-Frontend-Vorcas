@@ -7,6 +7,7 @@ import { HomePage } from './customer/pages/HomePage/HomePage';
 import Product from './customer/components/Product/Product';
 import ProductDetails from './customer/components/ProductDetails/ProductDetails';
 import Cart from './customer/components/Cart/Cart';
+import Checkout from './customer/components/Checkout/Checkout';
 import { CartProvider } from './context/CartContext';
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
             <Route path="/products" element={<Product />} />
             <Route path="/product/:id" element={<ProductDetails />} />
             <Route path="/cart" element={<Cart />} />
+            <Route path="/checkout" element={<Checkout />} />
           </Routes>
 
           <Footer />
