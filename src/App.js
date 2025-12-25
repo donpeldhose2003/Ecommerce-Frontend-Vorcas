@@ -17,10 +17,11 @@ import { CartProvider } from './context/CartContext';
 function AppRoutes() {
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith('/admin');
+  const isAuthRoute = location.pathname === '/login' || location.pathname === '/register';
 
   return (
     <div className="">
-      {!isAdminRoute && <Navigation />}
+      {!isAdminRoute && !isAuthRoute && <Navigation />}
 
       <Routes>
         <Route path="/" element={<HomePage />} />
@@ -40,7 +41,7 @@ function AppRoutes() {
         />
       </Routes>
 
-      {!isAdminRoute && <Footer />}
+      {!isAdminRoute && !isAuthRoute && <Footer />}
     </div>
   );
 }

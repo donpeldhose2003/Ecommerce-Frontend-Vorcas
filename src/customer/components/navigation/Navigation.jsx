@@ -1,7 +1,7 @@
 'use client'
 
-import { Fragment, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Fragment, useState, useEffect } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useCart } from '../../../context/CartContext'
 import {
   Dialog,
@@ -17,7 +17,7 @@ import {
   TabPanel,
   TabPanels,
 } from '@headlessui/react'
-import { Bars3Icon, MagnifyingGlassIcon, ShoppingBagIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { Bars3Icon, MagnifyingGlassIcon, ShoppingBagIcon, XMarkIcon, UserCircleIcon } from '@heroicons/react/24/outline'
 
 const navigation = {
   categories: [
@@ -146,6 +146,28 @@ const navigation = {
 export default function Navigation() {
   const [open, setOpen] = useState(false)
   const { getCartCount } = useCart()
+  const navigate = useNavigate()
+  const [user, setUser] = useState(null)
+
+  useEffect(() => {
+    const userData = localStorage.getItem('user') || sessionStorage.getItem('user')
+    if (userData) {
+      try {
+        setUser(JSON.parse(userData))
+      } catch (e) {
+        console.error('Failed to parse user data:', e)
+      }
+    }
+  }, [])
+
+  const handleLogout = () => {
+    localStorage.removeItem('authToken')
+    localStorage.removeItem('user')
+    sessionStorage.removeItem('authToken')
+    sessionStorage.removeItem('user')
+    setUser(null)
+    navigate('/')
+  }
 
   return (
     <div className="bg-white">
@@ -243,21 +265,48 @@ export default function Navigation() {
             </div>
 
             <div className="space-y-6 border-t border-gray-200 px-4 py-6">
-              <div className="flow-root">
-                <Link to="/login" className="-m-2 block p-2 font-medium text-gray-900">
-                  Sign in
-                </Link>
-              </div>
-              <div className="flow-root">
-                <Link to="/register" className="-m-2 block p-2 font-medium text-gray-900">
-                  Create account
-                </Link>
-              </div>
-              <div className="flow-root">
-                <Link to="/admin" className="-m-2 block p-2 font-medium text-indigo-600 hover:text-indigo-700">
-                  Admin Dashboard
-                </Link>
-              </div>
+              {user ? (
+                <>
+                  <div className="flow-root">
+                    <div className="-m-2 p-2">
+                      <div className="flex items-center gap-2">
+                        <UserCircleIcon className="h-6 w-6 text-gray-600" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{user.email}</p>
+                          {user.role === 'admin' && (
+                            <p className="text-xs text-indigo-600">Administrator</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {user.role === 'admin' && (
+                    <div className="flow-root">
+                      <Link to="/admin" className="-m-2 block p-2 font-medium text-indigo-600 hover:text-indigo-700">
+                        Admin Dashboard
+                      </Link>
+                    </div>
+                  )}
+                  <div className="flow-root">
+                    <button onClick={handleLogout} className="-m-2 block p-2 font-medium text-red-600 hover:text-red-700 w-full text-left">
+                      Sign out
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flow-root">
+                    <Link to="/login" className="-m-2 block p-2 font-medium text-gray-900">
+                      Sign in
+                    </Link>
+                  </div>
+                  <div className="flow-root">
+                    <Link to="/register" className="-m-2 block p-2 font-medium text-gray-900">
+                      Create account
+                    </Link>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="border-t border-gray-200 px-4 py-6">
@@ -388,17 +437,39 @@ export default function Navigation() {
 
               <div className="ml-auto flex items-center">
                 <div className="hidden lg:flex lg:flex-1 lg:items-center lg:justify-end lg:space-x-6">
-                  <Link to="/login" className="text-sm font-medium text-gray-700 hover:text-gray-800">
-                    Sign in
-                  </Link>
-                  <span aria-hidden="true" className="h-6 w-px bg-gray-200" />
-                  <Link to="/register" className="text-sm font-medium text-gray-700 hover:text-gray-800">
-                    Create account
-                  </Link>
-                  <span aria-hidden="true" className="h-6 w-px bg-gray-200" />
-                  <Link to="/admin" className="text-sm font-medium text-indigo-600 hover:text-indigo-700">
-                    Admin
-                  </Link>
+                  {user ? (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <UserCircleIcon className="h-5 w-5 text-gray-600" />
+                        <span className="text-sm font-medium text-gray-700">{user.email}</span>
+                        {user.role === 'admin' && (
+                          <span className="text-xs text-indigo-600 font-medium">(Admin)</span>
+                        )}
+                      </div>
+                      <span aria-hidden="true" className="h-6 w-px bg-gray-200" />
+                      {user.role === 'admin' && (
+                        <>
+                          <Link to="/admin" className="text-sm font-medium text-indigo-600 hover:text-indigo-700">
+                            Dashboard
+                          </Link>
+                          <span aria-hidden="true" className="h-6 w-px bg-gray-200" />
+                        </>
+                      )}
+                      <button onClick={handleLogout} className="text-sm font-medium text-red-600 hover:text-red-700">
+                        Sign out
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <Link to="/login" className="text-sm font-medium text-gray-700 hover:text-gray-800">
+                        Sign in
+                      </Link>
+                      <span aria-hidden="true" className="h-6 w-px bg-gray-200" />
+                      <Link to="/register" className="text-sm font-medium text-gray-700 hover:text-gray-800">
+                        Create account
+                      </Link>
+                    </>
+                  )}
                 </div>
 
                 <div className="hidden lg:ml-8 lg:flex">

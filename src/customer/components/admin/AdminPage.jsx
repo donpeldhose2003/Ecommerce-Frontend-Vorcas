@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { API_ENDPOINTS } from '../../../utils/api';
 
-const SAMPLE_USERS = 1284;
 const SAMPLE_ORDERS = [
   { id: 'ORD-2045', customer: 'John Doe', total: 320, status: 'Pending', date: '2025-12-22' },
   { id: 'ORD-2044', customer: 'Alice Smith', total: 189, status: 'Delivered', date: '2025-12-21' },
@@ -29,8 +29,9 @@ const AdminPage = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [orders] = useState(SAMPLE_ORDERS);
-  const [userCount] = useState(SAMPLE_USERS);
+  const [userCount, setUserCount] = useState(0);
   const [ordersTrend] = useState(SAMPLE_ORDERS_TREND);
+  const [fetchingUserCount, setFetchingUserCount] = useState(false);
 
   useEffect(() => {
     const authToken = localStorage.getItem('authToken');
@@ -52,7 +53,37 @@ const AdminPage = () => {
 
     setUser(parsedUser);
     setLoading(false);
+
+    // Fetch user count from API
+    fetchUserCount(authToken);
   }, [navigate]);
+
+  const fetchUserCount = async (token) => {
+    setFetchingUserCount(true);
+    try {
+      const response = await fetch(API_ENDPOINTS.USER_COUNT, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Handle different response formats: { count: 123 } or just a number
+        const count = typeof data === 'number' ? data : (data.count || data.userCount || 0);
+        setUserCount(count);
+      } else {
+        console.error('Failed to fetch user count:', response.status);
+        setUserCount(0); // Fallback to 0 if fetch fails
+      }
+    } catch (error) {
+      console.error('Error fetching user count:', error);
+      setUserCount(0); // Fallback to 0 on error
+    } finally {
+      setFetchingUserCount(false);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('authToken');

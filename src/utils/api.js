@@ -10,6 +10,7 @@ export const API_ENDPOINTS = {
   USER_PROFILE: '/api/users/profile',
   GET_PRODUCTS: '/api/admin/products/json',
   ADD_PRODUCT_JSON: '/api/admin/products/json',
+  USER_COUNT: '/api/admin/users/count',  // Get total user count for admin dashboard
 };
 
 // Helper function for API requests with proper error handling
