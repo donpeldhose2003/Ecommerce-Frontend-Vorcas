@@ -4,6 +4,8 @@ import {
   ArrowLeftOnRectangleIcon,
   PlusIcon,
   ArrowLeftIcon,
+  TrashIcon,
+  PencilIcon,
 } from '@heroicons/react/24/outline';
 import { API_ENDPOINTS } from '../../../utils/api';
 
@@ -16,6 +18,8 @@ const ProductsPage = () => {
   const [authChecked, setAuthChecked] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [products, setProducts] = useState([]); // Store fetched products
+  const [loadingProducts, setLoadingProducts] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -62,7 +66,36 @@ const ProductsPage = () => {
     setUser(parsedUser);
     setAuthChecked(true);
     setLoading(false);
+    
+    // Fetch products
+    fetchProducts(authToken);
   }, [navigate, authChecked]);
+
+  const fetchProducts = async (token) => {
+    setLoadingProducts(true);
+    try {
+      const response = await fetch(API_ENDPOINTS.GET_PRODUCTS, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const productList = Array.isArray(data) ? data : (data.products || []);
+        setProducts(productList);
+      } else {
+        console.error('Failed to fetch products:', response.status);
+        setProducts([]);
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      setProducts([]);
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -208,6 +241,12 @@ const ProductsPage = () => {
         });
         setShowForm(false);
         setTimeout(() => setSuccessMessage(''), 3000);
+        
+        // Refresh products list
+        const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+        if (token) {
+          fetchProducts(token);
+        }
       } else {
         if (response && (response.status === 401 || response.status === 403)) {
           setErrorMessage('Unauthorized: Invalid or expired token. Please log out and log back in, then try again.');
@@ -233,6 +272,19 @@ const ProductsPage = () => {
     navigate('/login');
   };
 
+  const handleDeleteProduct = (productId) => {
+    if (window.confirm('Are you sure you want to delete this product?')) {
+      // TODO: Implement delete product API call
+      console.log('Delete product:', productId);
+      // setProducts(products.filter(p => p.id !== productId));
+    }
+  };
+
+  const handleEditProduct = (product) => {
+    // TODO: Implement edit product functionality
+    console.log('Edit product:', product);
+  };
+
   if (!user || loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100">
@@ -246,26 +298,33 @@ const ProductsPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Header */}
-      <header className="bg-white shadow">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 flex justify-between items-center">
-          <div className="flex items-center gap-4">
+      {/* Enhanced Header */}
+      <header className="bg-white shadow-md">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          {/* Top Bar */}
+          <div className="flex justify-between items-center py-4">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate('/admin')}
+                className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition text-gray-700"
+                title="Back to Dashboard"
+              >
+                <ArrowLeftIcon className="h-5 w-5" />
+              </button>
+              <div>
+                <p className="text-gray-500 text-sm font-medium">Admin Dashboard</p>
+                <h1 className="text-gray-900 text-2xl font-bold">Products Management</h1>
+              </div>
+            </div>
             <button
-              onClick={() => navigate('/admin')}
-              className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 transition"
+              onClick={handleLogout}
+              className="px-4 py-2 rounded-md bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 text-sm font-medium"
             >
-              <ArrowLeftIcon className="h-6 w-6" />
-              <span>Back to Dashboard</span>
+              Logout
             </button>
-            <h1 className="text-3xl font-bold text-gray-900">Add Products</h1>
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-          >
-            <ArrowLeftOnRectangleIcon className="h-5 w-5" />
-            Logout
-          </button>
+
+
         </div>
       </header>
 
@@ -282,24 +341,32 @@ const ProductsPage = () => {
           </div>
         )}
 
-        {/* Add Product Section */}
-        <div className="bg-white rounded-lg p-6 border border-gray-200 shadow mb-8">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-semibold text-gray-900">
-              {showForm ? 'Add New Product' : 'Add Products'}
-            </h2>
-            {!showForm && (
-              <button
-                onClick={() => setShowForm(true)}
-                className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
-              >
-                <PlusIcon className="h-5 w-5" />
-                Add Product
-              </button>
-            )}
-          </div>
+        {/* Add Product Button */}
+        <div className="mb-8 flex justify-end">
+          {!showForm && (
+            <button
+              onClick={() => setShowForm(true)}
+              className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition font-medium"
+            >
+              <PlusIcon className="h-5 w-5" />
+              Add New Product
+            </button>
+          )}
+        </div>
 
-          {showForm && (
+        {/* Add Product Form */}
+        {showForm && (
+          <div className="bg-white rounded-lg p-6 border border-gray-200 shadow mb-8">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-semibold text-gray-900">Add New Product</h2>
+              <button
+                onClick={() => setShowForm(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Basic Info */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -580,12 +647,104 @@ const ProductsPage = () => {
                 </button>
               </div>
             </form>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Products Heading Only */}
-        <div className="bg-white rounded-lg p-6 border border-gray-200 shadow">
-          <h2 className="text-2xl font-semibold text-gray-900">Products</h2>
+        {/* Products List */}
+        <div className="bg-white rounded-lg border border-gray-200 shadow">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-2xl font-semibold text-gray-900">Products List</h2>
+            <p className="text-sm text-gray-600 mt-1">Manage your products here</p>
+          </div>
+
+          {loadingProducts ? (
+            <div className="p-8 text-center">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mb-2"></div>
+              <p className="text-gray-600">Loading products...</p>
+            </div>
+          ) : products.length === 0 ? (
+            <div className="p-8 text-center">
+              <p className="text-gray-500">No products added yet. Click "Add New Product" to get started.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200 bg-gray-50">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                      Product Name
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                      Category
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                      Price
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                      Stock
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {products.map((product) => (
+                    <tr key={product.id} className="hover:bg-gray-50 transition">
+                      <td className="px-6 py-4">
+                        <div>
+                          <p className="font-medium text-gray-900">{product.name}</p>
+                          <p className="text-sm text-gray-600 truncate max-w-xs">{product.description}</p>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm text-gray-700">{product.category}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">
+                            Rs.{product.finalPrice || product.originalPrice}
+                          </p>
+                          {product.discountPercent && (
+                            <p className="text-xs text-red-600">{product.discountPercent}% off</p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${
+                            product.stockQuantity > 0
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}
+                        >
+                          {product.stockQuantity}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEditProduct(product)}
+                            className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition text-sm font-medium"
+                          >
+                            <PencilIcon className="h-4 w-4" />
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteProduct(product.id)}
+                            className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 transition text-sm font-medium"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </main>
     </div>

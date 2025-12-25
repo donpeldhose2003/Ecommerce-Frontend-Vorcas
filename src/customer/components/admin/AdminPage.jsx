@@ -140,7 +140,7 @@ const AdminPage = () => {
               onClick={goToProducts}
               className="px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 text-sm font-medium"
             >
-              Manage Products
+              Add new Products
             </button>
             <button
               onClick={handleLogout}
