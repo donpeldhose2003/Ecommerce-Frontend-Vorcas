@@ -1,9 +1,9 @@
 import { Navigate } from 'react-router-dom';
 
 export default function ProtectedRoute({ element, requiredRole = null }) {
-  // Get auth token and user data from localStorage
-  const authToken = localStorage.getItem('authToken');
-  const userStr = localStorage.getItem('user');
+  // Get auth token and user data from localStorage or sessionStorage
+  const authToken = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+  const userStr = localStorage.getItem('user') || sessionStorage.getItem('user');
   
   console.log('ProtectedRoute - Checking access...');
   console.log('ProtectedRoute - Auth Token:', authToken ? 'Present' : 'Missing');

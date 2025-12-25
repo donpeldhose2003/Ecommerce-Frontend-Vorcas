@@ -1,133 +1,23 @@
 import React, { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import ProductCard from './ProductCard'
+import { apiCall, API_ENDPOINTS } from '../../../utils/api'
 
-// Sample product data - in production, this would come from an API
-const allProducts = {
-  women_tops: [
-    {
-      id: 1,
-      productName: 'Classic White T-Shirt',
-      productDescription: 'Comfortable cotton white t-shirt, perfect for everyday wear',
-      fullDescription: 'Soft, breathable cotton tee with a tailored fit. Great for layering or wearing solo. Machine washable.',
-      productImage: '/summer.avif',
-      productPrice: '24.99',
-      discountPrice: '19.99',
-      color: 'White',
-      size: 'M',
-      category: 'women_tops'
-    },
-    {
-      id: 2,
-      productName: 'Blue Casual Blouse',
-      productDescription: 'Elegant blue blouse with floral patterns',
-      fullDescription: 'Lightweight chiffon blouse with subtle floral print, relaxed fit, and button cuffs.',
-      productImage: '/OIP (1).webp',
-      productPrice: '36.99',
-      discountPrice: '29.99',
-      color: 'Blue',
-      size: 'S',
-      category: 'women_tops'
-    },
-    {
-      id: 3,
-      productName: 'Pink Summer Top',
-      productDescription: 'Light and breathable summer top',
-      fullDescription: 'Sleeveless top in breathable fabric, ideal for warm days. Relaxed cut with soft touch.',
-      productImage: '/OIP (2).webp',
-      productPrice: '32.99',
-      discountPrice: '24.99',
-      color: 'Pink',
-      size: 'L',
-      category: 'women_tops'
-    },
-    {
-      id: 4,
-      productName: 'Black Formal Shirt',
-      productDescription: 'Professional black shirt for office wear',
-      fullDescription: 'Structured cotton-blend shirt with crisp collar, perfect for office or formal events.',
-      productImage: '/OIP (3).webp',
-      productPrice: '44.99',
-      discountPrice: '34.99',
-      color: 'Black',
-      size: 'M',
-      category: 'women_tops'
-    },
-    {
-      id: 5,
-      productName: 'Striped Casual Tee',
-      productDescription: 'Comfortable striped t-shirt in navy and white',
-      fullDescription: 'Everyday striped tee with crew neck and soft handfeel. Pairs well with denim.',
-      productImage: '/OIP (4).webp',
-      productPrice: '28.99',
-      discountPrice: '22.99',
-      color: 'Navy/White',
-      size: 'XL',
-      category: 'women_tops'
-    },
-    {
-      id: 6,
-      productName: 'Floral Print Top',
-      productDescription: 'Trendy floral printed top for casual outings',
-      fullDescription: 'Flowy silhouette with floral motif, scoop neck, and soft drape for day-long comfort.',
-      productImage: '/633e5c862500003e00566718.webp',
-      productPrice: '33.99',
-      discountPrice: '26.99',
-      color: 'Multi',
-      size: 'S',
-      category: 'women_tops'
-    },
-  ],
-  mens_jeans: [
-    {
-      id: 7,
-      productName: 'Classic Slim Fit Jeans',
-      productDescription: 'Slim fit, stretch denim, indigo wash',
-      fullDescription: 'Stretch denim with slim silhouette, 5-pocket styling, and durable stitching.',
-      productImage: '/OIP (1).webp',
-      productPrice: '49.99',
-      discountPrice: '39.99',
-      color: 'Indigo',
-      size: '32',
-      category: 'mens_jeans'
-    },
-    {
-      id: 8,
-      productName: 'Relaxed Straight Jeans',
-      productDescription: 'Relaxed fit, durable fabric, dark wash',
-      fullDescription: 'Roomy through thigh with straight leg, rugged fabric built for daily wear.',
-      productImage: '/download.webp',
-      productPrice: '44.99',
-      discountPrice: '34.99',
-      color: 'Dark Wash',
-      size: '34',
-      category: 'mens_jeans'
-    },
-    {
-      id: 9,
-      productName: 'Tapered Fit Jeans',
-      productDescription: 'Tapered leg, soft cotton blend, black',
-      fullDescription: 'Modern tapered cut with soft cotton blend, minimal stretch for clean lines.',
-      productImage: '/OIP (2).webp',
-      productPrice: '54.99',
-      discountPrice: '44.99',
-      color: 'Black',
-      size: '32',
-      category: 'mens_jeans'
-    },
-    {
-      id: 10,
-      productName: 'Light Wash Jeans',
-      productDescription: 'Comfort fit, light blue wash',
-      fullDescription: 'Casual light-wash denim with comfort fit and subtle fading.',
-      productImage: '/OIP (3).webp',
-      productPrice: '46.99',
-      discountPrice: '36.99',
-      color: 'Light Blue',
-      size: '36',
-      category: 'mens_jeans'
-    },
-  ],
+// Map API response to frontend product structure
+const mapApiProductToFrontend = (apiProduct) => {
+  return {
+    id: apiProduct.id,
+    productName: apiProduct.name,
+    productDescription: apiProduct.description,
+    fullDescription: apiProduct.description,
+    productImage: apiProduct.imagePath || '/summer.avif',
+    productPrice: apiProduct.originalPrice.toString(),
+    discountPrice: apiProduct.finalPrice.toString(),
+    color: apiProduct.colors?.[0] || 'N/A',
+    size: apiProduct.sizes?.[0] || 'OneSize',
+    category: apiProduct.category,
+    ...apiProduct, // Include all API fields for reference
+  }
 }
 
 const Product = () => {
@@ -145,32 +35,43 @@ const Product = () => {
     discount: '',
   })
 
-  const category = searchParams.get('category') || 'women_tops'
+  const category = searchParams.get('category') || 'all'
 
   useEffect(() => {
     fetchProducts(category)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category])
 
   useEffect(() => {
     setFilteredProducts(applyFilters(products, filters))
   }, [products, filters])
 
-  const fetchProducts = (categoryFilter) => {
+  const fetchProducts = async (categoryFilter) => {
     try {
       setLoading(true)
       setSelectedCategory(categoryFilter)
       
-      // In production, replace this with an actual API call:
-      // const response = await fetch(`/api/products?category=${categoryFilter}`)
-      // const data = await response.json()
+      // Fetch from API
+      const data = await apiCall(API_ENDPOINTS.GET_PRODUCTS)
       
-      const categoryProducts = allProducts[categoryFilter] || []
-      setProducts(categoryProducts)
-      setFilteredProducts(applyFilters(categoryProducts, filters))
+      // Map API response to frontend format
+      let mappedProducts = Array.isArray(data) 
+        ? data.map(mapApiProductToFrontend)
+        : [mapApiProductToFrontend(data)]
+      
+      // Filter by category if needed
+      if (categoryFilter && categoryFilter !== 'all') {
+        mappedProducts = mappedProducts.filter(
+          p => p.category?.toLowerCase() === categoryFilter.toLowerCase()
+        )
+      }
+      
+      setProducts(mappedProducts)
+      setFilteredProducts(applyFilters(mappedProducts, filters))
       setError(null)
     } catch (err) {
       console.error('Error fetching products:', err)
-      setError('Failed to load products')
+      setError('Failed to load products. Please try again later.')
       setProducts([])
       setFilteredProducts([])
     } finally {
@@ -224,10 +125,12 @@ const Product = () => {
 
   const getCategoryTitle = () => {
     const categoryTitles = {
-      women_tops: "Women's Tops",
-      mens_jeans: "Men's Jeans",
+      all: 'All Products',
+      electronics: 'Electronics',
+      clothing: 'Clothing',
+      accessories: 'Accessories',
     }
-    return categoryTitles[selectedCategory] || 'Products'
+    return categoryTitles[selectedCategory?.toLowerCase()] || 'Products'
   }
 
   const colorOptions = Array.from(new Set(products.map((p) => p.color).filter(Boolean)))
@@ -344,7 +247,7 @@ const Product = () => {
 
       {!loading && filteredProducts.length === 0 && (
         <div className='text-center py-20'>
-          <p className='text-gray-600'>No products found in this category.</p>
+          <p className='text-gray-600'>No products found.</p>
         </div>
       )}
 

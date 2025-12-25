@@ -70,11 +70,18 @@ export default function Login() {
         throw new Error(data?.message || `Login failed with status ${response.status}`);
       }
       
-      // Get token from response
-      const token = data.token || data.jwt || `token_${Date.now()}`;
-      
-      console.log('Token received:', token);
-      localStorage.setItem('authToken', token);
+      // Get token from response (support common keys)
+      const token = data.token || data.jwt || data.accessToken || data.access_token || data.id_token;
+
+      if (!token) {
+        throw new Error('Login succeeded but no token was returned by the server.');
+      }
+
+      const normalizedToken = token.startsWith('Bearer ') ? token.replace(/^Bearer\s+/i, '') : token;
+      const finalToken = (normalizedToken || '').trim();
+
+      console.log('Token received:', finalToken ? finalToken.substring(0, 20) + '...' : 'EMPTY');
+      localStorage.setItem('authToken', finalToken);
       
       // Always fetch user profile to get the role (since JWT doesn't include it)
       let userRole = 'customer';
@@ -84,7 +91,7 @@ export default function Login() {
       try {
         const profileResponse = await fetch(API_ENDPOINTS.USER_PROFILE, {
           headers: {
-            'Authorization': `Bearer ${token}`,
+            'Authorization': `Bearer ${finalToken}`,
           },
         });
         
@@ -101,7 +108,7 @@ export default function Login() {
           
           // Fallback: try to decode JWT
           try {
-            const payloadBase64 = token.split('.')[1];
+            const payloadBase64 = finalToken.split('.')[1];
             if (payloadBase64) {
               const payloadJson = atob(payloadBase64);
               const decodedPayload = JSON.parse(payloadJson);

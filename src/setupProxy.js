@@ -6,10 +6,15 @@ module.exports = function(app) {
     createProxyMiddleware({
       target: 'http://localhost:8080',
       changeOrigin: true,
-      pathRewrite: {
-        '^/api': '',
-      },
+      credentials: 'include',  // Include credentials for CORS
       onProxyReq: (proxyReq, req, res) => {
+        // Preserve Authorization header if present
+        const authHeader = req.headers['authorization'];
+        if (authHeader) {
+          proxyReq.setHeader('Authorization', authHeader);
+          console.log('Proxy: Forwarding Authorization header:', authHeader.substring(0, 20) + '...');
+        }
+
         if (req.body) {
           const bodyData = JSON.stringify(req.body);
           proxyReq.setHeader('Content-Type', 'application/json');
@@ -17,6 +22,7 @@ module.exports = function(app) {
           proxyReq.write(bodyData);
         }
       },
+      logLevel: 'debug',
     })
   );
 };
