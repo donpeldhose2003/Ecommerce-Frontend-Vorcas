@@ -150,13 +150,43 @@ export default function Navigation() {
   const [user, setUser] = useState(null)
 
   useEffect(() => {
-    const userData = localStorage.getItem('user') || sessionStorage.getItem('user')
-    if (userData) {
-      try {
-        setUser(JSON.parse(userData))
-      } catch (e) {
-        console.error('Failed to parse user data:', e)
+    // Function to load user data
+    const loadUserData = () => {
+      const userData = localStorage.getItem('user') || sessionStorage.getItem('user')
+      if (userData) {
+        try {
+          setUser(JSON.parse(userData))
+        } catch (e) {
+          console.error('Failed to parse user data:', e)
+          setUser(null)
+        }
+      } else {
+        setUser(null)
       }
+    }
+
+    // Load user data on mount
+    loadUserData()
+
+    // Listen for storage changes (when user logs in/out in another tab or component)
+    const handleStorageChange = (e) => {
+      if (e.key === 'user' || e.key === null) {
+        loadUserData()
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+
+    // Also listen for custom event when user logs in
+    const handleUserLogin = () => {
+      loadUserData()
+    }
+    
+    window.addEventListener('userLogin', handleUserLogin)
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('userLogin', handleUserLogin)
     }
   }, [])
 
@@ -166,6 +196,10 @@ export default function Navigation() {
     sessionStorage.removeItem('authToken')
     sessionStorage.removeItem('user')
     setUser(null)
+    
+    // Dispatch custom event to clear cart
+    window.dispatchEvent(new Event('userLogout'))
+    
     navigate('/')
   }
 

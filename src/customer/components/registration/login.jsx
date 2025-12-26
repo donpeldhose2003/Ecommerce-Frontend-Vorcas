@@ -147,6 +147,9 @@ export default function Login() {
       console.log('Storing user data:', JSON.stringify(userData, null, 2));
       localStorage.setItem('user', JSON.stringify(userData));
       
+      // Dispatch custom event to notify Navigation component
+      window.dispatchEvent(new Event('userLogin'));
+      
       // Debug: Check what was actually stored
       const storedUser = localStorage.getItem('user');
       const storedToken = localStorage.getItem('authToken');

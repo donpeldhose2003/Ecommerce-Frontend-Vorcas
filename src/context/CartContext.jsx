@@ -11,14 +11,71 @@ export const useCart = () => {
 }
 
 export const CartProvider = ({ children }) => {
+  // Get current user to make cart user-specific
+  const getCurrentUser = () => {
+    const userData = localStorage.getItem('user') || sessionStorage.getItem('user')
+    if (userData) {
+      try {
+        const user = JSON.parse(userData)
+        return user.email || user.id || null
+      } catch {
+        return null
+      }
+    }
+    return null
+  }
+
+  const [currentUser, setCurrentUser] = useState(getCurrentUser())
+
   const [cartItems, setCartItems] = useState(() => {
-    const savedCart = localStorage.getItem('cart')
+    const user = getCurrentUser()
+    if (!user) return []
+    
+    const cartKey = `cart_${user}`
+    const savedCart = localStorage.getItem(cartKey)
     return savedCart ? JSON.parse(savedCart) : []
   })
 
+  // Update cart in localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem('cart', JSON.stringify(cartItems))
+    const user = getCurrentUser()
+    if (user) {
+      const cartKey = `cart_${user}`
+      localStorage.setItem(cartKey, JSON.stringify(cartItems))
+    }
   }, [cartItems])
+
+  // Listen for user changes (login/logout/switch user)
+  useEffect(() => {
+    const handleUserChange = () => {
+      const newUser = getCurrentUser()
+      
+      // If user changed, load their cart
+      if (newUser !== currentUser) {
+        setCurrentUser(newUser)
+        
+        if (newUser) {
+          const cartKey = `cart_${newUser}`
+          const savedCart = localStorage.getItem(cartKey)
+          setCartItems(savedCart ? JSON.parse(savedCart) : [])
+        } else {
+          // No user logged in, clear cart
+          setCartItems([])
+        }
+      }
+    }
+
+    // Listen for storage changes and custom events
+    window.addEventListener('storage', handleUserChange)
+    window.addEventListener('userLogin', handleUserChange)
+    window.addEventListener('userLogout', handleUserChange)
+
+    return () => {
+      window.removeEventListener('storage', handleUserChange)
+      window.removeEventListener('userLogin', handleUserChange)
+      window.removeEventListener('userLogout', handleUserChange)
+    }
+  }, [currentUser])
 
   const addToCart = (product, quantity = 1) => {
     setCartItems((prevItems) => {

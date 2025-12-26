@@ -20,6 +20,7 @@ const ProductsPage = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [products, setProducts] = useState([]); // Store fetched products
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null); // Track product being edited
 
   const [formData, setFormData] = useState({
     name: '',
@@ -41,6 +42,8 @@ const ProductsPage = () => {
     sale: false,
     limitedEdition: false,
   });
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
 
   useEffect(() => {
     if (authChecked) return; // Only check auth once
@@ -99,10 +102,24 @@ const ProductsPage = () => {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
+    if (type === 'file') {
+      // Handle file input
+      const file = e.target.files[0];
+      if (file) {
+        setImageFile(file);
+        // Create preview
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImagePreview(reader.result);
+        };
+        reader.readAsDataURL(file);
+      }
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value,
+      }));
+    }
   };
 
   const calculateFinalPrice = (original, discount) => {
@@ -138,8 +155,7 @@ const ProductsPage = () => {
         return;
       }
 
-      console.log('Token being sent:', token ? token.substring(0, 20) + '...' : 'NO TOKEN');
-
+      // Build product JSON payload
       const productPayload = {
         name: formData.name,
         description: formData.description,
@@ -161,64 +177,72 @@ const ProductsPage = () => {
         limitedEdition: formData.limitedEdition,
       };
 
+      // Prefer multipart with product JSON part if image is present
+      const formDataToSend = new FormData();
+      formDataToSend.append('product', new Blob([JSON.stringify(productPayload)], { type: 'application/json' }));
+      if (imageFile) {
+        formDataToSend.append('image', imageFile);
+      }
+
       const headers = {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
         'Authorization': `Bearer ${token.startsWith('Bearer ') ? token.replace(/^Bearer\s+/i, '') : token}`,
       };
 
-      console.log('Request headers:', { Authorization: headers.Authorization.substring(0, 20) + '...' });
-      console.log('Request body:', productPayload);
+      // Determine if we're editing or adding
+      const isEditing = editingProduct !== null;
+      const url = isEditing 
+        ? `http://localhost:8080/api/admin/products/${editingProduct.id}`
+        : (API_ENDPOINTS.ADD_PRODUCT_JSON || '/api/admin/products/json');
+      
+      const method = isEditing ? 'PUT' : 'POST';
 
-      // Prefer proxied endpoint; fallback to direct backend URL if needed
-      const url = API_ENDPOINTS.ADD_PRODUCT_JSON || '/api/admin/products/json';
       let response = await fetch(url, {
-        method: 'POST',
+        method,
         headers,
-        body: JSON.stringify(productPayload),
+        body: formDataToSend,
       });
 
-      console.log('API Response Status:', response.status);
-      console.log('API Response Headers:', Array.from(response.headers.entries()));
-
-      // Fallback: if proxied request returns 401 or 4xx/5xx, try direct backend URL
-      if (!response.ok && response.status >= 400) {
+      if (!response.ok && !isEditing) {
+        // Fallback to direct backend URL with multipart
+        const directUrl = 'http://localhost:8080/admin/products/json';
+        let directResponse;
         try {
-          const directUrl = `${window.location.origin.includes('localhost') ? 'http://localhost:8080' : ''}/admin/products/json`;
-          console.log('Retrying direct backend URL:', directUrl);
-          const directResponse = await fetch(directUrl, {
+          directResponse = await fetch(directUrl, {
             method: 'POST',
             headers,
+            body: formDataToSend,
+          });
+        } catch (_) {}
+        if (directResponse && directResponse.ok) {
+          response = directResponse;
+        } else {
+          // Final fallback: send pure JSON (no image) to match "json" endpoint
+          const jsonHeaders = {
+            'Content-Type': 'application/json',
+            'Authorization': headers.Authorization,
+          };
+          const jsonResp = await fetch(API_ENDPOINTS.ADD_PRODUCT_JSON, {
+            method: 'POST',
+            headers: jsonHeaders,
             body: JSON.stringify(productPayload),
           });
-          console.log('Direct API Response Status:', directResponse.status);
-          
-          // Use direct response if it's better than proxied
-          if (directResponse.ok || directResponse.status < response.status) {
-            response = directResponse;
+          if (jsonResp.ok) {
+            response = jsonResp;
           }
-        } catch (retryErr) {
-          console.error('Direct backend retry failed:', retryErr);
         }
       }
 
-      // Parse response body once
       let responseData;
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
         responseData = await response.json();
       } else {
-        const text = await response.text();
-        try {
-          responseData = JSON.parse(text);
-        } catch {
-          responseData = { message: text };
-        }
+        const txt = await response.text();
+        try { responseData = JSON.parse(txt); } catch { responseData = { message: txt }; }
       }
-      console.log('API Response Body:', responseData);
 
-      if (response && response.ok) {
-        setSuccessMessage('Product added successfully!');
+      if (response.ok) {
+        setSuccessMessage(isEditing ? 'Product updated successfully!' : 'Product added successfully!');
         setFormData({
           name: '',
           description: '',
@@ -239,28 +263,30 @@ const ProductsPage = () => {
           sale: false,
           limitedEdition: false,
         });
+        setImageFile(null);
+        setImagePreview(null);
+        setEditingProduct(null);
         setShowForm(false);
         setTimeout(() => setSuccessMessage(''), 3000);
-        
-        // Refresh products list
-        const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
-        if (token) {
-          fetchProducts(token);
-        }
+
+        const freshToken = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+        if (freshToken) fetchProducts(freshToken);
       } else {
-        if (response && (response.status === 401 || response.status === 403)) {
-          setErrorMessage('Unauthorized: Invalid or expired token. Please log out and log back in, then try again.');
-          // Do not auto-redirect; let the user re-login manually to avoid loop
-          return;
+        const status = response.status;
+        if (status === 401 || status === 403) {
+          setErrorMessage('Unauthorized: please re-login and try again.');
+        } else {
+          const msg = responseData?.message || responseData?.error || `Failed to ${isEditing ? 'update' : 'add'} product`;
+          setErrorMessage(`Error ${status}: ${msg}`);
+          if (imageFile && !isEditing) {
+            // Hint: backend may only accept JSON at this endpoint
+            setErrorMessage((prev) => prev + ' (Image upload may require a multipart endpoint; product was not saved with image.)');
+          }
         }
-        // Show detailed error from backend
-        const errorMsg = responseData?.message || responseData?.error || 'Failed to add product';
-        setErrorMessage(`Error ${response.status}: ${errorMsg}`);
-        console.error('Backend error:', responseData);
       }
-    } catch (error) {
-      console.error('Error adding product:', error);
-      setErrorMessage('Error adding product. Please try again.');
+    } catch (err) {
+      console.error('Error saving product:', err);
+      setErrorMessage('Error saving product. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -272,17 +298,67 @@ const ProductsPage = () => {
     navigate('/login');
   };
 
-  const handleDeleteProduct = (productId) => {
-    if (window.confirm('Are you sure you want to delete this product?')) {
-      // TODO: Implement delete product API call
-      console.log('Delete product:', productId);
-      // setProducts(products.filter(p => p.id !== productId));
+  const handleDeleteProduct = async (productId) => {
+    if (!window.confirm('Are you sure you want to delete this product?')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+      
+      if (!token) {
+        setErrorMessage('Session expired. Please log in again.');
+        navigate('/login');
+        return;
+      }
+
+      const response = await fetch(`http://localhost:8080/api/admin/products/${productId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token.startsWith('Bearer ') ? token.replace(/^Bearer\s+/i, '') : token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        setSuccessMessage('Product deleted successfully!');
+        // Remove product from local state
+        setProducts(products.filter(p => p.id !== productId));
+        setTimeout(() => setSuccessMessage(''), 3000);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        setErrorMessage(`Failed to delete product: ${errorData.message || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      setErrorMessage('Error deleting product. Please try again.');
     }
   };
 
   const handleEditProduct = (product) => {
-    // TODO: Implement edit product functionality
-    console.log('Edit product:', product);
+    setEditingProduct(product);
+    setFormData({
+      name: product.name || '',
+      description: product.description || '',
+      category: product.category || '',
+      subCategory: product.subCategory || '',
+      originalPrice: product.originalPrice || '',
+      discountPercent: product.discountPercent || '',
+      finalPrice: product.finalPrice || '',
+      stockQuantity: product.stockQuantity || '',
+      colors: Array.isArray(product.colors) ? product.colors.join(', ') : '',
+      sizes: Array.isArray(product.sizes) ? product.sizes.join(', ') : '',
+      materials: product.materials || '',
+      careInstructions: product.careInstructions || '',
+      gender: product.gender || '',
+      featured: product.featured || false,
+      newArrivals: product.newArrivals || false,
+      bestseller: product.bestseller || false,
+      sale: product.sale || false,
+      limitedEdition: product.limitedEdition || false,
+    });
+    setImagePreview(product.imagePath || null);
+    setShowForm(true);
   };
 
   if (!user || loading) {
@@ -301,14 +377,9 @@ const ProductsPage = () => {
       {/* Enhanced Header */}
       <header className="bg-white shadow-md">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          {/* Top Bar */}
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => navigate('/admin')}
-                className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition text-gray-700"
-                title="Back to Dashboard"
-              >
+              <button onClick={() => navigate('/admin')} className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition text-gray-700" title="Back to Dashboard">
                 <ArrowLeftIcon className="h-5 w-5" />
               </button>
               <div>
@@ -316,15 +387,8 @@ const ProductsPage = () => {
                 <h1 className="text-gray-900 text-2xl font-bold">Products Management</h1>
               </div>
             </div>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 rounded-md bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 text-sm font-medium"
-            >
-              Logout
-            </button>
+            <button onClick={handleLogout} className="px-4 py-2 rounded-md bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 text-sm font-medium">Logout</button>
           </div>
-
-
         </div>
       </header>
 
@@ -335,6 +399,7 @@ const ProductsPage = () => {
             {successMessage}
           </div>
         )}
+              {/* Pricing */}
         {errorMessage && (
           <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
             {errorMessage}
@@ -358,9 +423,36 @@ const ProductsPage = () => {
         {showForm && (
           <div className="bg-white rounded-lg p-6 border border-gray-200 shadow mb-8">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-semibold text-gray-900">Add New Product</h2>
+              <h2 className="text-2xl font-semibold text-gray-900">
+                {editingProduct ? 'Edit Product' : 'Add New Product'}
+              </h2>
               <button
-                onClick={() => setShowForm(false)}
+                onClick={() => {
+                  setShowForm(false);
+                  setEditingProduct(null);
+                  setFormData({
+                    name: '',
+                    description: '',
+                    category: '',
+                    subCategory: '',
+                    originalPrice: '',
+                    discountPercent: '',
+                    finalPrice: '',
+                    stockQuantity: '',
+                    colors: '',
+                    sizes: '',
+                    materials: '',
+                    careInstructions: '',
+                    gender: '',
+                    featured: false,
+                    newArrivals: false,
+                    bestseller: false,
+                    sale: false,
+                    limitedEdition: false,
+                  });
+                  setImageFile(null);
+                  setImagePreview(null);
+                }}
                 className="text-gray-500 hover:text-gray-700 text-2xl"
               >
                 ✕
@@ -445,6 +537,37 @@ const ProductsPage = () => {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder="Product description..."
                 />
+              </div>
+
+              {/* Image Upload */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Product Image
+                </label>
+                <div className="flex items-center gap-4">
+                  <input
+                    type="file"
+                    name="image"
+                    onChange={handleInputChange}
+                    accept="image/*"
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  {imagePreview && (
+                    <div className="flex items-center gap-2">
+                      <img src={imagePreview} alt="Preview" className="w-16 h-16 object-cover rounded-lg border border-gray-300" />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImageFile(null);
+                          setImagePreview(null);
+                        }}
+                        className="text-red-600 hover:text-red-700 text-sm font-medium"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Pricing */}
@@ -636,11 +759,36 @@ const ProductsPage = () => {
                   disabled={submitting}
                   className="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition disabled:opacity-50"
                 >
-                  {submitting ? 'Adding Product...' : 'Add Product'}
+                  {submitting ? (editingProduct ? 'Updating Product...' : 'Adding Product...') : (editingProduct ? 'Update Product' : 'Add Product')}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowForm(false)}
+                  onClick={() => {
+                    setShowForm(false);
+                    setEditingProduct(null);
+                    setFormData({
+                      name: '',
+                      description: '',
+                      category: '',
+                      subCategory: '',
+                      originalPrice: '',
+                      discountPercent: '',
+                      finalPrice: '',
+                      stockQuantity: '',
+                      colors: '',
+                      sizes: '',
+                      materials: '',
+                      careInstructions: '',
+                      gender: '',
+                      featured: false,
+                      newArrivals: false,
+                      bestseller: false,
+                      sale: false,
+                      limitedEdition: false,
+                    });
+                    setImageFile(null);
+                    setImagePreview(null);
+                  }}
                   className="flex-1 bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400 transition"
                 >
                   Cancel

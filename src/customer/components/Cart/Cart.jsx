@@ -53,7 +53,7 @@ const Cart = () => {
                       {item.productName} ({item.size})
                     </span>
                     <span className='whitespace-nowrap'>
-                      {item.quantity} x ${itemPrice.toFixed(2)} = ${itemTotal.toFixed(2)}
+                      {item.quantity} x Rs. {itemPrice.toFixed(2)} = Rs. {itemTotal.toFixed(2)}
                     </span>
                   </div>
                 )
@@ -63,7 +63,7 @@ const Cart = () => {
             <div className='space-y-3 mb-6 pt-3 border-t border-gray-300'>
               <div className='flex justify-between text-gray-600'>
                 <span>Subtotal</span>
-                <span>${getCartTotal().toFixed(2)}</span>
+                <span>Rs. {getCartTotal().toFixed(2)}</span>
               </div>
               <div className='flex justify-between text-gray-600'>
                 <span>Shipping</span>
@@ -71,7 +71,7 @@ const Cart = () => {
               </div>
               <div className='border-t border-gray-300 pt-3 flex justify-between text-lg font-bold text-gray-900'>
                 <span>Total</span>
-                <span>${getCartTotal().toFixed(2)}</span>
+                <span>Rs. {getCartTotal().toFixed(2)}</span>
               </div>
             </div>
 

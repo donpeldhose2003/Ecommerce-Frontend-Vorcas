@@ -8,7 +8,7 @@ export const API_ENDPOINTS = {
   LOGIN: `${BACKEND_URL}/auth/login`,  // Direct to backend (no /api prefix)
   REGISTER: `${BACKEND_URL}/auth/register`,  // Direct to backend (no /api prefix)
   USER_PROFILE: '/api/users/profile',
-  GET_PRODUCTS: '/api/admin/products/json',
+  GET_PRODUCTS: '/api/products/json',
   ADD_PRODUCT_JSON: '/api/admin/products/json',
   USER_COUNT: `${BACKEND_URL}/auth/count`,  // Get total user count for admin dashboard
 };
@@ -16,11 +16,22 @@ export const API_ENDPOINTS = {
 // Helper function for API requests with proper error handling
 export const apiCall = async (url, options = {}) => {
   try {
+    // Get token from localStorage or sessionStorage
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token')
+    
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    }
+    
+    if (token) {
+      // Ensure token has Bearer prefix
+      const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`
+      headers['Authorization'] = authToken
+    }
+    
     const response = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
+      headers,
       ...options,
     });
 

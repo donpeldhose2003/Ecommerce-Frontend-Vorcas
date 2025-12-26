@@ -61,9 +61,9 @@ const CartItem = ({ item }) => {
           <div className='flex items-center gap-4'>
             <div className='text-right'>
               {item.discountPrice && (
-                <div className='text-sm text-gray-400 line-through'>${parseFloat(item.productPrice).toFixed(2)}</div>
+                <div className='text-sm text-gray-400 line-through'>Rs. {parseFloat(item.productPrice).toFixed(2)}</div>
               )}
-              <div className='text-lg font-bold text-blue-600'>${itemTotal.toFixed(2)}</div>
+              <div className='text-lg font-bold text-blue-600'>Rs. {itemTotal.toFixed(2)}</div>
             </div>
             <button
               onClick={handleRemove}

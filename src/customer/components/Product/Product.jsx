@@ -5,12 +5,14 @@ import { apiCall, API_ENDPOINTS } from '../../../utils/api'
 
 // Map API response to frontend product structure
 const mapApiProductToFrontend = (apiProduct) => {
+  console.log('Mapping product:', apiProduct.name, 'Image path from API:', apiProduct.imagePath)
+  
   return {
     id: apiProduct.id,
     productName: apiProduct.name,
     productDescription: apiProduct.description,
     fullDescription: apiProduct.description,
-    productImage: apiProduct.imagePath || '/summer.avif',
+    productImage: apiProduct.imagePath || null,
     productPrice: apiProduct.originalPrice.toString(),
     discountPrice: apiProduct.finalPrice.toString(),
     color: apiProduct.colors?.[0] || 'N/A',
@@ -21,7 +23,7 @@ const mapApiProductToFrontend = (apiProduct) => {
 }
 
 const Product = () => {
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [products, setProducts] = useState([])
   const [filteredProducts, setFilteredProducts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -35,6 +37,7 @@ const Product = () => {
     discount: '',
   })
 
+  // Get category from URL, default to 'all' to show all products
   const category = searchParams.get('category') || 'all'
 
   useEffect(() => {
@@ -51,19 +54,63 @@ const Product = () => {
       setLoading(true)
       setSelectedCategory(categoryFilter)
       
+      // Get token from localStorage or sessionStorage (optional for product browsing)
+      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken')
+      
+      const headers = {
+        'Content-Type': 'application/json',
+      }
+      
+      // Add Authorization header only if token exists
+      if (token) {
+        const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`
+        headers['Authorization'] = authToken
+      }
+      
+      console.log('Fetching products from:', API_ENDPOINTS.GET_PRODUCTS)
+      
       // Fetch from API
-      const data = await apiCall(API_ENDPOINTS.GET_PRODUCTS)
+      const response = await fetch(API_ENDPOINTS.GET_PRODUCTS, {
+        headers,
+      })
+      
+      console.log('Response status:', response.status, response.statusText)
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('API Error Response:', errorText)
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+      
+      const data = await response.json()
+      console.log('Raw API Response:', data)
+      console.log('Is array?', Array.isArray(data))
+      console.log('Number of products returned:', Array.isArray(data) ? data.length : 'Not an array')
+      
+      if (Array.isArray(data)) {
+        console.log('First product:', data[0])
+        console.log('All products:', data)
+      }
       
       // Map API response to frontend format
       let mappedProducts = Array.isArray(data) 
         ? data.map(mapApiProductToFrontend)
         : [mapApiProductToFrontend(data)]
       
-      // Filter by category if needed
-      if (categoryFilter && categoryFilter !== 'all') {
+      console.log('Total mapped products:', mappedProducts.length)
+      console.log('Product categories:', mappedProducts.map(p => ({ id: p.id, name: p.productName, category: p.category })))
+      console.log('Category filter:', categoryFilter)
+      
+      // Only filter by category if it's not 'all' and not empty
+      // This ensures we show all products by default
+      if (categoryFilter && categoryFilter !== 'all' && categoryFilter.trim() !== '') {
+        console.log('Applying category filter for:', categoryFilter)
         mappedProducts = mappedProducts.filter(
           p => p.category?.toLowerCase() === categoryFilter.toLowerCase()
         )
+        console.log('After category filter:', mappedProducts.length)
+      } else {
+        console.log('Showing all products (no category filter)')
       }
       
       setProducts(mappedProducts)
@@ -71,7 +118,7 @@ const Product = () => {
       setError(null)
     } catch (err) {
       console.error('Error fetching products:', err)
-      setError('Failed to load products. Please try again later.')
+      setError(`Failed to load products: ${err.message}`)
       setProducts([])
       setFilteredProducts([])
     } finally {
@@ -160,7 +207,7 @@ const Product = () => {
 
       <div className='mb-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4'>
         <div className='flex flex-col gap-2'>
-          <label className='text-sm text-gray-700'>Price range ($)</label>
+          <label className='text-sm text-gray-700'>Price range (Rs.)</label>
           <div className='flex gap-2'>
             <input
               type='number'
