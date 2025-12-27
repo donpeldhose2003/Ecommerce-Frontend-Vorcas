@@ -4,11 +4,27 @@ import CartItem from './CartItem'
 import { Link } from 'react-router-dom'
 
 const Cart = () => {
-  const { cartItems, getCartTotal, clearCart } = useCart()
+  const { cartItems, getCartTotal, clearCart, error, loading } = useCart()
+
+  if (loading) {
+    return (
+      <div className='px-5 lg:px-20 py-10'>
+        <div className='text-center py-20'>
+          <div className='inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600'></div>
+          <p className='text-gray-600 mt-4'>Loading cart...</p>
+        </div>
+      </div>
+    )
+  }
 
   if (cartItems.length === 0) {
     return (
       <div className='px-5 lg:px-20 py-10'>
+        {error && (
+          <div className='mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg'>
+            {error}
+          </div>
+        )}
         <div className='text-center py-20'>
           <h2 className='text-2xl font-bold text-gray-800 mb-4'>Your cart is empty</h2>
           <p className='text-gray-600 mb-6'>Add some products to get started!</p>
@@ -25,6 +41,11 @@ const Cart = () => {
 
   return (
     <div className='px-5 lg:px-20 py-10'>
+      {error && (
+        <div className='mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg'>
+          {error}
+        </div>
+      )}
       <div className='mb-8'>
         <h1 className='text-3xl font-bold text-gray-900 mb-2'>Shopping Cart</h1>
         <p className='text-gray-600'>{cartItems.length} {cartItems.length === 1 ? 'item' : 'items'}</p>
@@ -45,12 +66,12 @@ const Cart = () => {
             
             <div className='space-y-3 mb-4'>
               {cartItems.map((item) => {
-                const itemPrice = parseFloat(item.discountPrice || item.productPrice)
+                const itemPrice = parseFloat(item.price || item.discountPrice || item.productPrice || 0)
                 const itemTotal = itemPrice * item.quantity
                 return (
                   <div key={`${item.id}-${item.size}-${item.color}`} className='flex justify-between text-sm text-gray-700'>
                     <span className='flex-1 truncate pr-2'>
-                      {item.productName} ({item.size})
+                      {item.productName} ({item.size || 'OneSize'})
                     </span>
                     <span className='whitespace-nowrap'>
                       {item.quantity} x Rs. {itemPrice.toFixed(2)} = Rs. {itemTotal.toFixed(2)}

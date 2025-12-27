@@ -110,15 +110,30 @@ const ProductDetails = () => {
     )
   }
   
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
+    // Check if user is logged in
+    const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken')
+    if (!token) {
+      alert('Please login to add items to cart')
+      navigate('/login', { state: { from: location.pathname } })
+      return
+    }
+
     if (!selectedSize && product.sizes && product.sizes.length > 0) {
       alert('Please select a size')
       return
     }
     
-    addToCart({ ...product, selectedSize }, quantity)
-    alert(`Added ${quantity} ${product.productName} to cart!`)
-    setQuantity(1)
+    console.log('handleAddToCart called with:', { product, quantity, selectedSize })
+    
+    try {
+      await addToCart({ ...product, selectedSize }, quantity)
+      alert(`Added ${quantity} ${product.productName} to cart!`)
+      setQuantity(1)
+    } catch (error) {
+      console.error('Error in handleAddToCart:', error)
+      alert('Failed to add item to cart. Please try again.')
+    }
   }
 
   const decrement = () => {

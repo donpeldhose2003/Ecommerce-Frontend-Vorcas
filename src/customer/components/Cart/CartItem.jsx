@@ -36,8 +36,8 @@ const CartItem = ({ item }) => {
           <h3 className='text-lg font-semibold text-gray-900 mb-1'>{item.productName}</h3>
           <p className='text-sm text-gray-600 mb-2'>{item.productDescription}</p>
           <div className='flex gap-4 text-sm text-gray-600'>
-            <span>Color: {item.color}</span>
-            <span>Size: {item.size}</span>
+            <span>Color: {item.color || 'N/A'}</span>
+            <span>Size: {item.size || 'OneSize'}</span>
           </div>
         </div>
 
