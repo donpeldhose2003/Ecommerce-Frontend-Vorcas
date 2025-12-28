@@ -31,7 +31,7 @@ const Footer = () => {
 
 				<div>
 					<h3 className="text-lg font-semibold mb-3">Stay Updated</h3>
-					<p className="text-sm text-gray-400 mb-3">Join our newsletter for exclusive offer and updates.</p>
+					<p className="text-sm text-gray-400 mb-3">Join our newsletter for exclusive offers and updates.</p>
 					<form className="flex flex-col sm:flex-row gap-2">
 						<input
 							type="email"
